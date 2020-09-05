@@ -440,7 +440,7 @@ class MPU6050 {
 
         void ReadRegister(uint8_t reg, uint8_t *data, uint8_t len);
 
-        void initialize();
+        void initialize(gpio_num_t sda_pin, gpio_num_t scl_pin);
         bool testConnection();
 
         // AUX_VDDIO register

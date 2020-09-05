@@ -10,7 +10,7 @@
 // DEVELOPMENT AND IS STILL MISSING SOME IMPORTANT FEATURES. PLEASE KEEP THIS IN MIND IF
 // YOU DECIDE TO USE THIS PARTICULAR CODE FOR ANYTHING.
 
-/* ============================================
+/* ============================================conf.mode = I2C_MODE_MASTER;
 I2Cdev device library code is placed under the MIT license
 Copyright (c) 2012 Jeff Rowberg
 
@@ -37,7 +37,11 @@ THE SOFTWARE.
 #include "MPU6050.h"
 #include <string.h>
 
-#define I2C_NUM I2C_NUM_0
+#define I2C_NUM I2C_NUM_0 //I2C_NUM_0 for first i2c port on the esp32. I2C_NUM_1 for second.
+
+// Master does not need buffer, so setting buffer size to zero.
+const size_t MASTER_TX_BUF_DISABLE = 0;
+const size_t MASTER_RX_BUF_DISABLE = 0;
 
 void MPU6050::ReadRegister(uint8_t reg, uint8_t *data, uint8_t len){
 	uint8_t dev = 0x68;
@@ -83,7 +87,19 @@ MPU6050::MPU6050(uint8_t address) {
  * the clock source to use the X Gyro for reference, which is slightly better than
  * the default internal clock source.
  */
-void MPU6050::initialize() {
+void MPU6050::initialize(gpio_num_t sda_pin, gpio_num_t scl_pin) {
+
+    i2c_port_t i2c_master_port = I2C_NUM;
+    i2c_config_t conf;
+    conf.mode = I2C_MODE_MASTER;
+    conf.sda_io_num = sda_pin;
+    conf.sda_pullup_en = GPIO_PULLUP_ENABLE;
+    conf.scl_io_num = scl_pin;
+    conf.scl_pullup_en = GPIO_PULLUP_ENABLE;
+    conf.master.clk_speed = 100000; // Hz
+    i2c_driver_install(i2c_master_port, conf.mode, MASTER_RX_BUF_DISABLE, MASTER_RX_BUF_DISABLE, 0);
+    i2c_param_config(i2c_master_port, &conf);
+
     setClockSource(MPU6050_CLOCK_PLL_XGYRO);
     setFullScaleGyroRange(MPU6050_GYRO_FS_250);
     setFullScaleAccelRange(MPU6050_ACCEL_FS_2);
@@ -284,7 +300,7 @@ void MPU6050::setFullScaleGyroRange(uint8_t range) {
  */
 uint8_t MPU6050::getAccelXSelfTestFactoryTrim() {
     I2Cdev::readByte(devAddr, MPU6050_RA_SELF_TEST_X, &buffer[0]);
-	I2Cdev::readByte(devAddr, MPU6050_RA_SELF_TEST_A, &buffer[1]);	
+	I2Cdev::readByte(devAddr, MPU6050_RA_SELF_TEST_A, &buffer[1]);
     return (buffer[0]>>3) | ((buffer[1]>>4) & 0x03);
 }
 
@@ -294,7 +310,7 @@ uint8_t MPU6050::getAccelXSelfTestFactoryTrim() {
  */
 uint8_t MPU6050::getAccelYSelfTestFactoryTrim() {
     I2Cdev::readByte(devAddr, MPU6050_RA_SELF_TEST_Y, &buffer[0]);
-	I2Cdev::readByte(devAddr, MPU6050_RA_SELF_TEST_A, &buffer[1]);	
+	I2Cdev::readByte(devAddr, MPU6050_RA_SELF_TEST_A, &buffer[1]);
     return (buffer[0]>>3) | ((buffer[1]>>2) & 0x03);
 }
 
@@ -303,7 +319,7 @@ uint8_t MPU6050::getAccelYSelfTestFactoryTrim() {
  * @see MPU6050_RA_SELF_TEST_Z
  */
 uint8_t MPU6050::getAccelZSelfTestFactoryTrim() {
-    I2Cdev::readBytes(devAddr, MPU6050_RA_SELF_TEST_Z, 2, buffer);	
+    I2Cdev::readBytes(devAddr, MPU6050_RA_SELF_TEST_Z, 2, buffer);
     return (buffer[0]>>3) | (buffer[1] & 0x03);
 }
 
@@ -312,7 +328,7 @@ uint8_t MPU6050::getAccelZSelfTestFactoryTrim() {
  * @see MPU6050_RA_SELF_TEST_X
  */
 uint8_t MPU6050::getGyroXSelfTestFactoryTrim() {
-    I2Cdev::readByte(devAddr, MPU6050_RA_SELF_TEST_X, buffer);	
+    I2Cdev::readByte(devAddr, MPU6050_RA_SELF_TEST_X, buffer);
     return (buffer[0] & 0x1F);
 }
 
@@ -321,7 +337,7 @@ uint8_t MPU6050::getGyroXSelfTestFactoryTrim() {
  * @see MPU6050_RA_SELF_TEST_Y
  */
 uint8_t MPU6050::getGyroYSelfTestFactoryTrim() {
-    I2Cdev::readByte(devAddr, MPU6050_RA_SELF_TEST_Y, buffer);	
+    I2Cdev::readByte(devAddr, MPU6050_RA_SELF_TEST_Y, buffer);
     return (buffer[0] & 0x1F);
 }
 
@@ -330,7 +346,7 @@ uint8_t MPU6050::getGyroYSelfTestFactoryTrim() {
  * @see MPU6050_RA_SELF_TEST_Z
  */
 uint8_t MPU6050::getGyroZSelfTestFactoryTrim() {
-    I2Cdev::readByte(devAddr, MPU6050_RA_SELF_TEST_Z, buffer);	
+    I2Cdev::readByte(devAddr, MPU6050_RA_SELF_TEST_Z, buffer);
     return (buffer[0] & 0x1F);
 }
 
@@ -943,7 +959,7 @@ void MPU6050::setMasterClockSpeed(uint8_t speed) {
  * operation, and if it is cleared, then it's a write operation. The remaining
  * bits (6-0) are the 7-bit device address of the slave device.
  *
- * In read mode, the result of the read is placed in the lowest available 
+ * In read mode, the result of the read is placed in the lowest available
  * EXT_SENS_DATA register. For further information regarding the allocation of
  * read results, please refer to the EXT_SENS_DATA register description
  * (Registers 73 - 96).
@@ -3041,7 +3057,7 @@ void MPU6050::readMemoryBlock(uint8_t *data, uint16_t dataSize, uint8_t bank, ui
 
         // read the chunk of data as specified
         I2Cdev::readBytes(devAddr, MPU6050_RA_MEM_R_W, chunkSize, data + i);
-        
+
         // increase byte index by [chunkSize]
         i += chunkSize;
 
@@ -3075,7 +3091,7 @@ bool MPU6050::writeMemoryBlock(const uint8_t *data, uint16_t dataSize, uint8_t b
 
         // make sure this chunk doesn't go past the bank boundary (256 bytes)
         if (chunkSize > 256 - address) chunkSize = 256 - address;
-        
+
         if (useProgMem) {
             // write the chunk of data as specified
             for (j = 0; j < chunkSize; j++) progBuffer[j] = pgm_read_byte(data + i + j);
@@ -3188,7 +3204,7 @@ bool MPU6050::writeDMPConfigurationSet(const uint8_t *data, uint16_t dataSize, b
             Serial.println(" found...");*/
             if (special == 0x01) {
                 // enable DMP-related interrupts
-                
+
                 //setIntZeroMotionEnabled(true);
                 //setIntFIFOBufferOverflowEnabled(true);
                 //setIntDMPEnabled(true);
@@ -3200,7 +3216,7 @@ bool MPU6050::writeDMPConfigurationSet(const uint8_t *data, uint16_t dataSize, b
                 success = false;
             }
         }
-        
+
         if (!success) {
             if (useProgMem) free(progBuffer);
             return false; // uh oh
